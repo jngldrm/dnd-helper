@@ -1,0 +1,560 @@
+/* Minimales Styling für das D&D Charakterblatt */
+
+.dnd-character-sheet {
+    border: 1px solid #ccc;
+    padding: 15px;
+    margin-bottom: 20px;
+    font-family: sans-serif;
+    background-color: #f9f9f9;
+    max-width: 800px; /* Begrenzung der Breite */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.dnd-character-sheet .sheet-header {
+    border-bottom: 2px solid #888;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+}
+
+.dnd-character-sheet .sheet-header h1 {
+    margin: 0 0 5px 0;
+    font-size: 1.8em;
+}
+
+.dnd-character-sheet .char-meta span {
+    margin-right: 8px;
+    padding-right: 8px;
+    border-right: 1px solid #ddd;
+    font-size: 0.9em;
+    color: #555;
+}
+.dnd-character-sheet .char-meta span:last-child {
+    border-right: none;
+    margin-right: 0;
+    padding-right: 0;
+}
+
+.dnd-character-sheet .sheet-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive Spalten */
+    gap: 20px;
+}
+
+.dnd-character-sheet section {
+    border: 1px solid #eee;
+    padding: 10px;
+    background-color: #fff;
+}
+
+.dnd-character-sheet h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+    font-size: 1.2em;
+}
+.dnd-character-sheet h4 {
+     margin-top: 15px;
+     margin-bottom: 5px;
+     font-size: 1em;
+     font-weight: bold;
+}
+
+.dnd-character-sheet ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+/* Attribute */
+.ability-scores ul li {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+    border: 1px solid #eee;
+    padding: 5px;
+}
+.ability-scores .ability-name {
+    flex-basis: 100px;
+    font-weight: bold;
+}
+.ability-scores .ability-score {
+    font-size: 1.3em;
+    margin: 0 10px;
+    min-width: 30px;
+    text-align: center;
+}
+.ability-scores .ability-modifier {
+    font-size: 1em;
+    color: #666;
+    border: 1px solid #ccc;
+    padding: 2px 5px;
+    border-radius: 4px;
+    min-width: 30px;
+    text-align: center;
+}
+
+/* Fertigkeiten & Rettungswürfe */
+.proficiencies-skills .proficiency-bonus {
+    font-size: 1.1em;
+    margin-bottom: 10px;
+    text-align: center;
+    border: 1px solid #ddd;
+    padding: 5px;
+}
+.proficiencies-skills ul li {
+    display: flex;
+    align-items: center;
+    margin-bottom: 3px;
+    padding: 2px 0;
+    font-size: 0.9em;
+}
+.proficiencies-skills .prof-indicator {
+    width: 15px;
+    font-size: 0.7em;
+    color: #555;
+}
+.proficiencies-skills .save-bonus,
+.proficiencies-skills .skill-bonus {
+    width: 35px;
+    font-weight: bold;
+    text-align: right;
+    margin-right: 5px;
+}
+.proficiencies-skills .save-name,
+.proficiencies-skills .skill-name {
+    flex-grow: 1;
+}
+.proficiencies-skills .skill-ability {
+    font-size: 0.8em;
+    color: #777;
+    margin-left: 5px;
+}
+
+/* Kampfwerte */
+.combat-info .combat-values {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 15px;
+    text-align: center;
+}
+.combat-info .combat-box {
+    border: 1px solid #ccc;
+    padding: 10px;
+    flex-basis: 30%; /* Gleiche Breite für die Boxen */
+}
+.combat-info .combat-box label {
+    display: block;
+    font-weight: bold;
+    font-size: 0.8em;
+    margin-bottom: 5px;
+    color: #444;
+}
+.combat-info .combat-box .value {
+    font-size: 1.6em;
+    font-weight: bold;
+}
+
+.combat-info .hitpoints,
+.combat-info .hitdice,
+.combat-info .death-saves {
+    margin-bottom: 10px;
+    padding: 5px;
+    border-top: 1px solid #eee;
+}
+.combat-info label {
+    font-weight: bold;
+    margin-right: 10px;
+}
+.combat-info .hp-values span,
+.combat-info .hitdice span,
+.combat-info .death-saves span {
+     margin-right: 15px;
+}
+
+
+/* Angriffe Tabelle */
+.attacks-spells .attacks-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 0.9em;
+}
+.attacks-spells .attacks-table th,
+.attacks-spells .attacks-table td {
+    border: 1px solid #ddd;
+    padding: 5px;
+    text-align: left;
+}
+.attacks-spells .attacks-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+.attacks-spells .attacks-table td:nth-child(2), /* Angriffsbonus zentriert */
+.attacks-spells .attacks-table td:nth-child(3) { /* Schaden zentriert */
+    text-align: center;
+}
+
+
+/* Fehlermeldung */
+.dnd-error {
+    color: red;
+    border: 1px solid red;
+    padding: 10px;
+    background-color: #ffebeb;
+}
+
+      
+/* --- Basis-Styles (können aus vorheriger Version übernommen werden) --- */
+.dnd-character-sheet { /* ... bestehende Styles ... */ }
+.dnd-character-sheet .sheet-header { /* ... bestehende Styles ... */ }
+/* ... etc. ... */
+
+/* --- NEUE Styles für Tabs --- */
+.dnd-tabs-nav {
+    list-style: none;
+    padding: 0;
+    margin: 15px 0 0 0;
+    border-bottom: 1px solid #ccc;
+    display: flex;
+    flex-wrap: wrap; /* Umbruch bei vielen Tabs */
+}
+
+.dnd-tabs-nav li {
+    margin: 0 5px -1px 0; /* Negativer Margin für Überlappung mit Border */
+}
+
+.dnd-tabs-nav .dnd-tab-link {
+    display: block;
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-bottom: none;
+    background-color: #f1f1f1;
+    color: #333;
+    text-decoration: none;
+    border-radius: 4px 4px 0 0;
+    transition: background-color 0.2s ease;
+}
+
+.dnd-tabs-nav .dnd-tab-link:hover {
+    background-color: #e0e0e0;
+}
+
+.dnd-tabs-nav .dnd-tab-link.active {
+    background-color: #fff;
+    border-bottom: 1px solid #fff; /* Überdeckt die untere Border der Nav */
+    font-weight: bold;
+}
+
+.dnd-tabs-content {
+    border: 1px solid #ccc;
+    border-top: none;
+    padding: 15px;
+    background-color: #fff;
+}
+
+.dnd-tab-pane {
+    display: none; /* Standardmäßig ausgeblendet */
+}
+
+.dnd-tab-pane.active {
+    display: block; /* Aktiver Tab wird angezeigt */
+}
+
+/* Helfer für Spaltenlayout innerhalb von Tabs */
+.tab-section {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+.tab-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.tab-section.columns-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+.tab-section.columns-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+
+.tab-section h3, .tab-section h4 { /* ... Style wie vorher oder anpassen ... */ }
+
+
+/* --- NEUE Styles für Akkordeons --- */
+.dnd-accordion-container {
+    margin-top: 15px;
+}
+
+.dnd-accordion {
+    border: 1px solid #ddd;
+    margin-bottom: 5px;
+    border-radius: 3px;
+    overflow: hidden; /* Wichtig für Animation */
+}
+
+.dnd-accordion-header {
+    display: flex; /* Für Icon am Ende */
+    justify-content: space-between; /* Icon rechts */
+    align-items: center;
+    width: 100%;
+    background-color: #f7f7f7;
+    border: none;
+    border-bottom: 1px solid #ddd; /* Trenner, wenn geschlossen */
+    padding: 10px 15px;
+    text-align: left;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+.dnd-accordion-header:hover {
+    background-color: #eee;
+}
+.dnd-accordion-header.active {
+    background-color: #e8e8e8;
+    border-bottom: 1px solid #ccc;
+}
+
+/* Icon für Akkordeon (Plus/Minus oder Pfeil) */
+.dnd-accordion-header::after {
+    content: '+'; /* Standard: Plus */
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-left: 10px;
+    transition: transform 0.3s ease;
+}
+.dnd-accordion-header.active::after {
+    content: '−'; /* Minus, wenn aktiv */
+    transform: rotate(180deg); /* Optional: Drehen */
+}
+
+
+.dnd-accordion-content {
+    padding: 15px;
+    background-color: #fff;
+    display: none; /* Standardmäßig ausgeblendet */
+    border-top: 1px solid #eee; /* Linie zum Header */
+}
+.dnd-accordion-content ul {
+    list-style: disc; /* Oder none */
+    padding-left: 20px;
+    margin: 0;
+}
+.dnd-accordion-content li {
+    margin-bottom: 10px;
+}
+.dnd-accordion-content p {
+    margin-top: 5px;
+    margin-bottom: 5px;
+    padding-left: 10px; /* Einrückung für Beschreibungen */
+    font-size: 0.95em;
+    color: #333;
+}
+
+/* Spezifische Styles */
+.equipped-tag { font-style: normal; color: green; font-weight: bold; margin-left: 5px; }
+.type-tag { font-style: normal; color: #666; margin-left: 5px; }
+.death-save-dots { font-size: 1.4em; letter-spacing: 2px; color: #555;}
+.spell-slots { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+.slot-level { border: 1px solid #ccc; padding: 5px 10px; text-align: center; background-color: #f9f9f9;}
+.slot-level label { display: block; font-size: 0.8em; font-weight: bold; }
+.currency-values span { margin-right: 15px; display: inline-block; border: 1px solid #eee; padding: 3px 8px; background-color: #fafafa;}
+
+/* Kleinere Anpassungen für Lesbarkeit */
+.skills ul { column-count: 2; column-gap: 20px; } /* Fertigkeiten in 2 Spalten */
+.skills ul li { break-inside: avoid-column; } /* Verhindert Umbruch innerhalb eines Listenelements */
+
+.limited-use-item { margin-bottom: 10px; }
+
+.dnd-editable-field { color: #18a8ff; }
+    
+
+
+/* In character-sheet.css oder dnd-summary.css */
+
+/* Kampagnen-spezifischer Header */
+.dnd-campaign-summary .campaign-header {
+    margin-bottom: 20px;
+}
+.dnd-campaign-summary .campaign-header h1 {
+    font-size: 1.8em;
+}
+.dnd-campaign-summary .campaign-last-played {
+    font-style: italic;
+    color: #555;
+}
+
+/* Layout für Akte, Quests etc. */
+.acts-accordion .dnd-accordion-header,
+.quests-accordion .dnd-accordion-header { /* etc. */
+    /* Spezifische Styles für Kampagnen-Akkordeons, falls nötig */
+}
+.acts-accordion .dnd-accordion-content ul,
+.quests-accordion .dnd-accordion-content ul {
+    list-style-type: disc;
+    padding-left: 20px;
+}
+.acts-accordion .dnd-accordion-content li,
+.quests-accordion .dnd-accordion-content li {
+    margin-bottom: 8px;
+}
+
+/* NPC-Liste */
+.dnd-npc-list {
+    list-style: none;
+    padding: 0;
+}
+.dnd-npc-list li {
+    border-bottom: 1px dashed #eee;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+.dnd-npc-list li:last-child {
+    border-bottom: none;
+}
+.dnd-npc-list strong {
+    font-size: 1.1em;
+}
+.dnd-npc-list .npc-description {
+    margin-top: 5px;
+    margin-bottom: 5px;
+    padding-left: 15px;
+}
+.dnd-npc-list .npc-meta {
+    font-size: 0.9em;
+    color: #777;
+    margin: 3px 0 3px 15px;
+}
+
+/* Ggf. weitere Stile für Fraktionen, Gegenstände etc. */
+
+/* Expanding Header */
+.sheet-header.expanding-header {
+    display: flex;
+    align-items: flex-start; /* Oder center, je nach gewünschtem Look */
+    gap: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #888;
+    margin-bottom: 15px;
+    cursor: pointer; /* Macht den ganzen Header klickbar/hoverbar */
+}
+
+.char-image-trigger {
+    width: 35px;  /* Kleinere Vorschau */
+    height: 35px;
+    flex-shrink: 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: width 0.5s ease-in-out, height 0.5s ease-in-out; /* Opacity leicht verzögert */
+
+}
+
+.char-image-trigger img.char-header-image-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.char-info-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column; /* Hauptinfo oben, Details darunter */
+}
+
+.char-info-main {
+    /* Keine speziellen Styles hier nötig, außer für .char-meta-brief */
+}
+
+.char-info-main h1 {
+    margin: 0 0 5px 0;
+    font-size: 1.8em;
+}
+
+.char-meta-brief {
+    font-size: 0.9em;
+    color: #555;
+    display: flex; /* Für den Pfeil am Ende */
+    align-items: center;
+}
+.char-meta-brief span {
+    margin-right: 5px;
+}
+.char-meta-brief .expand-indicator {
+    margin-left: auto; /* Pfeil nach rechts schieben */
+    font-size: 0.8em;
+    transition: transform 0.3s ease;
+}
+
+/* Der Detailbereich */
+.char-info-details {
+    max-height: 0; /* Initial versteckt */
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out 0.1s; /* Opacity leicht verzögert */
+    display: flex; /* Erlaubt Bild neben Text */
+    gap: 15px;
+    border-top: 1px dashed #eee; /* Leichte Trennlinie */
+}
+
+.char-image-large-wrapper {
+    width: 120px; /* Größe des Bildes in den Details */
+    height: 120px;
+    flex-shrink: 0;
+    border: 1px solid #ddd;
+    overflow: hidden;
+}
+.char-image-trigger img.char-header-image-expanded {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.char-image-trigger img.campaign-header-image-expanded {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.char-details-full-text {
+    flex-grow: 1;
+}
+.char-details-full-text h3 {
+    margin-top: 0;
+    font-size: 1.3em; /* Gleiche Größe wie Haupt-H1 oder etwas kleiner */
+}
+.char-details-full-text p {
+    margin: 0 0 5px 0;
+    line-height: 1.4;
+}
+
+
+/* Hover-Effekt: Auslöser ist der gesamte Header oder der Bild-Trigger */
+.sheet-header.expanding-header:hover .char-info-details {
+    max-height: 500px; /* Genug Höhe für den Inhalt. JS könnte dies dynamischer machen. */
+    opacity: 1;
+    transition-delay: 0s, 0s; /* Reset Opacity-Delay beim Hovern */
+}
+
+.sheet-header.expanding-header:hover .char-image-trigger {
+    width: 120px;  /* Kleinere Vorschau */
+    height: 120px;
+}
+
+
+.sheet-header.expanding-header:hover .char-meta-brief .expand-indicator {
+    transform: rotate(180deg); /* Pfeil drehen */
+}
+
+/* Fallback, wenn kein Bild vorhanden ist */
+.sheet-header.expanding-header.no-image .char-info-container {
+    /* Verhindere, dass der leere Detailbereich Platz einnimmt, falls JS ihn nicht entfernt */
+}
+.sheet-header.expanding-header.no-image .char-info-details {
+    display: none !important; /* Details komplett ausblenden, wenn kein Bild da ist (oder andere Logik) */
+}
+.sheet-header.expanding-header.no-image .char-meta-brief .expand-indicator {
+    display: none; /* Pfeil ausblenden, wenn kein Bild */
+}
+.sheet-header.expanding-header.no-image .char-info-main {
+    /* Wenn kein Bild, ist char-meta-brief die Hauptinfo */
+}
+

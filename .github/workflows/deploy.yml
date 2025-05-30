@@ -1,0 +1,26 @@
+name: Deploy WordPress Plugin to Webgo via FTP
+
+on:
+  push:
+    branches:
+      - main  # oder dein aktiver Branch
+
+jobs:
+  ftp-deploy:
+    name: Upload Plugin to Webgo
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: FTP Deploy
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_HOST }}
+        username: ${{ secrets.FTP_USER }}
+        password: ${{ secrets.FTP_PASS }}
+        port: ${{ secrets.FTP_PORT }}
+        protocol: ftp
+        server-dir: ${{ secrets.FTP_PATH }}
+        local-dir: ./
