@@ -27,11 +27,15 @@ define( 'DND_HELPER_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
  */
 function dnd_helper_load_includes() {
     require_once DND_HELPER_PLUGIN_DIR . 'includes/cpt-character.php';
+    require_once DND_HELPER_PLUGIN_DIR . 'includes/cpt-campaign.php';
+    require_once DND_HELPER_PLUGIN_DIR . 'includes/cpt-session.php';
+    require_once DND_HELPER_PLUGIN_DIR . 'includes/cpt-mitspieler.php';
     require_once DND_HELPER_PLUGIN_DIR . 'includes/meta-boxes.php';
     require_once DND_HELPER_PLUGIN_DIR . 'includes/shortcodes.php';
     require_once DND_HELPER_PLUGIN_DIR . 'includes/ajax-handlers.php';
 	require_once DND_HELPER_PLUGIN_DIR . 'includes/template-tags.php';
-    require_once DND_HELPER_PLUGIN_DIR . 'includes/cpt-campaign.php';
+    require_once DND_HELPER_PLUGIN_DIR . 'includes/session-api.php';
+    require_once DND_HELPER_PLUGIN_DIR . 'includes/session-analysis.php';
 	    // Nur im Admin-Bereich laden:
     if ( is_admin() ) {
         require_once DND_HELPER_PLUGIN_DIR . 'includes/admin-ui.php';
@@ -76,14 +80,23 @@ function dnd_helper_activate() {
     // 1. Datenbanktabelle erstellen/aktualisieren
     dnd_helper_create_chat_table();
 
-    // 2. Sicherstellen, dass der CPT registriert ist, bevor die Regeln geflusht werden
-    // (Wichtig: Der Include muss vor dem flush_rewrite_rules bleiben)
+    // 2. Sicherstellen, dass die CPTs registriert sind, bevor die Regeln geflusht werden
     require_once DND_HELPER_PLUGIN_DIR . 'includes/cpt-character.php';
-    dnd_register_character_post_type(); // Funktion aus cpt-character.php aufrufen
+    dnd_register_character_post_type();
     require_once DND_HELPER_PLUGIN_DIR . 'includes/cpt-campaign.php';
     dnd_register_campaign_post_type();
+    require_once DND_HELPER_PLUGIN_DIR . 'includes/cpt-session.php';
+    dndt_register_session_post_type();
+    require_once DND_HELPER_PLUGIN_DIR . 'includes/cpt-mitspieler.php';
+    dndt_register_mitspieler_post_type();
 
-    // 3. Flush rewrite rules damit die CPT URLs korrekt funktionieren
+    // 3. API Key für Session Management generieren
+    if ( ! get_option( 'dndt_api_key' ) ) {
+        $api_key = wp_generate_password( 64, false );
+        update_option( 'dndt_api_key', $api_key );
+    }
+
+    // 4. Flush rewrite rules damit die CPT URLs korrekt funktionieren
     flush_rewrite_rules();
 }
 register_activation_hook( __FILE__, 'dnd_helper_activate' );

@@ -23,6 +23,10 @@ function dnd_restrict_admin_menu_for_editors() {
             'index.php',
             'profile.php', // Profil sollte zugänglich bleiben
             'edit.php?post_type=dnd_character',
+            'edit.php?post_type=dnd_campaign',
+            'edit.php?post_type=dndt_session',
+            'edit.php?post_type=dndt_mitspieler',
+            'options-general.php', // Für D&D Helper Settings
         ];
 
         // Erlaubte Sub-Menü-Punkte unter dem CPT (optional, falls nötig)
@@ -74,6 +78,114 @@ function dnd_add_editor_dashboard_widget() {
 add_action( 'wp_dashboard_setup', 'dnd_add_editor_dashboard_widget' );
 
 /**
+ * Registriert Settings-Seite für das D&D Helper Plugin.
+ */
+function dnd_register_settings_page() {
+    add_options_page(
+        __( 'D&D Helper Einstellungen', 'dnd-helper' ),
+        __( 'D&D Helper', 'dnd-helper' ),
+        'manage_options',
+        'dnd-helper-settings',
+        'dnd_render_settings_page'
+    );
+}
+add_action( 'admin_menu', 'dnd_register_settings_page' );
+
+/**
+ * Registriert die Settings für das Plugin.
+ */
+function dnd_register_settings() {
+    // Session Management API Key
+    register_setting( 'dnd_helper_settings', 'dndt_api_key' );
+    register_setting( 'dnd_helper_settings', 'dndt_gemini_api_key' );
+
+    // Settings Sektion
+    add_settings_section(
+        'dnd_session_management_section',
+        __( 'Session Management', 'dnd-helper' ),
+        'dnd_session_management_section_callback',
+        'dnd-helper-settings'
+    );
+
+    // API Key Felder
+    add_settings_field(
+        'dndt_api_key',
+        __( 'Session API Key', 'dnd-helper' ),
+        'dnd_api_key_field_callback',
+        'dnd-helper-settings',
+        'dnd_session_management_section'
+    );
+
+    add_settings_field(
+        'dndt_gemini_api_key',
+        __( 'Gemini AI API Key', 'dnd-helper' ),
+        'dnd_gemini_api_key_field_callback',
+        'dnd-helper-settings',
+        'dnd_session_management_section'
+    );
+}
+add_action( 'admin_init', 'dnd_register_settings' );
+
+/**
+ * Callback für die Session Management Sektion.
+ */
+function dnd_session_management_section_callback() {
+    echo '<p>' . esc_html__( 'Konfiguration für die Session-Verwaltung und KI-Analyse.', 'dnd-helper' ) . '</p>';
+}
+
+/**
+ * Callback für das API Key Feld.
+ */
+function dnd_api_key_field_callback() {
+    $api_key = get_option( 'dndt_api_key' );
+    echo '<input type="text" id="dndt_api_key" name="dndt_api_key" value="' . esc_attr( $api_key ) . '" class="regular-text" readonly />';
+    echo '<p class="description">' . esc_html__( 'API Key für externe Session-Erstellung. Wird automatisch generiert.', 'dnd-helper' ) . '</p>';
+    echo '<button type="button" id="regenerate-api-key" class="button">' . esc_html__( 'Neuen Key generieren', 'dnd-helper' ) . '</button>';
+    ?>
+    <script>
+    document.getElementById('regenerate-api-key').addEventListener('click', function() {
+        if (confirm('<?php esc_html_e( 'Möchten Sie wirklich einen neuen API Key generieren? Der alte wird ungültig.', 'dnd-helper' ); ?>')) {
+            // Neuen Key generieren
+            var newKey = '';
+            var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            for (var i = 0; i < 64; i++) {
+                newKey += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            document.getElementById('dndt_api_key').value = newKey;
+        }
+    });
+    </script>
+    <?php
+}
+
+/**
+ * Callback für das Gemini API Key Feld.
+ */
+function dnd_gemini_api_key_field_callback() {
+    $api_key = get_option( 'dndt_gemini_api_key' );
+    echo '<input type="password" id="dndt_gemini_api_key" name="dndt_gemini_api_key" value="' . esc_attr( $api_key ) . '" class="regular-text" />';
+    echo '<p class="description">' . esc_html__( 'Gemini AI API Key für die automatische Session-Analyse. Kostenlos erhältlich bei Google AI Studio.', 'dnd-helper' ) . '</p>';
+}
+
+/**
+ * Rendert die Settings-Seite.
+ */
+function dnd_render_settings_page() {
+    ?>
+    <div class="wrap">
+        <h1><?php esc_html_e( 'D&D Helper Einstellungen', 'dnd-helper' ); ?></h1>
+        <form method="post" action="options.php">
+            <?php
+            settings_fields( 'dnd_helper_settings' );
+            do_settings_sections( 'dnd-helper-settings' );
+            submit_button();
+            ?>
+        </form>
+    </div>
+    <?php
+}
+
+/**
  * Gibt den Inhalt für das Editor-Anleitungs-Widget aus.
  */
 function dnd_render_editor_instructions_widget() {
@@ -111,6 +223,14 @@ function dnd_render_editor_instructions_widget() {
          <li>
             <strong><?php _e('Chat:', 'dnd-helper'); ?></strong>
             <?php _e('Der Shortcode [dnd_chat] auf der Spielseite ermöglicht das gemeinsame Würfeln und Chatten.', 'dnd-helper'); ?>
+        </li>
+        <li>
+            <strong><?php _e('Session Management:', 'dnd-helper'); ?></strong>
+            <?php _e('D&D Sessions können über die REST API automatisch importiert und mit KI analysiert werden.', 'dnd-helper'); ?>
+        </li>
+        <li>
+            <strong><?php _e('Mitspieler:', 'dnd-helper'); ?></strong>
+            <?php _e('Verwalten Sie Spieler-Profile für die Speaker-Zuordnung in Session-Transkripten.', 'dnd-helper'); ?>
         </li>
     </ul>
     <p>
