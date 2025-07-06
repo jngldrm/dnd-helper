@@ -124,8 +124,22 @@ class DNDT_Session_API {
         }
         
         if ( ! empty( $params['processed_transcript'] ) ) {
+            // Debug: Prüfe die rohen Daten vor dem Speichern
+            error_log( 'DND Session API: Raw processed_transcript type: ' . gettype( $params['processed_transcript'] ) );
+            error_log( 'DND Session API: Raw processed_transcript length: ' . ( is_string( $params['processed_transcript'] ) ? strlen( $params['processed_transcript'] ) : 'not_string' ) );
+            error_log( 'DND Session API: Raw processed_transcript sample: ' . substr( print_r( $params['processed_transcript'], true ), 0, 1000 ) );
+            
             // Strukturierte Transkriptdaten als JSON speichern
-            update_post_meta( $post_id, '_dndt_processed_transcript', wp_json_encode( $params['processed_transcript'] ) );
+            if ( is_array( $params['processed_transcript'] ) ) {
+                $json_data = wp_json_encode( $params['processed_transcript'] );
+            } else {
+                $json_data = $params['processed_transcript']; // Bereits JSON String
+            }
+            
+            error_log( 'DND Session API: Final JSON length: ' . strlen( $json_data ) );
+            error_log( 'DND Session API: Final JSON sample: ' . substr( $json_data, 0, 1000 ) );
+            
+            update_post_meta( $post_id, '_dndt_processed_transcript', $json_data );
         }
         
         if ( ! empty( $params['dateiname_originalaufnahme'] ) ) {
@@ -145,6 +159,29 @@ class DNDT_Session_API {
         }
         
         wp_set_object_terms( $post_id, $session_tag, 'dndt_session_tag' );
+
+        // Automatische Sprecher-Zuordnung auslösen (nur bei strukturierten Daten)
+        error_log( 'DND Session API: Checking speaker mapping trigger for post ' . $post_id );
+        error_log( 'DND Session API: processed_transcript present: ' . ( ! empty( $params['processed_transcript'] ) ? 'yes' : 'no' ) );
+        error_log( 'DND Session API: processed_transcript type: ' . gettype( $params['processed_transcript'] ) );
+        
+        if ( ! empty( $params['processed_transcript'] ) ) {
+            // Decode JSON string if necessary
+            $transcript_data = $params['processed_transcript'];
+            if ( is_string( $transcript_data ) ) {
+                $transcript_data = json_decode( $transcript_data, true );
+                error_log( 'DND Session API: Decoded JSON transcript for validation' );
+            }
+            
+            if ( is_array( $transcript_data ) ) {
+                error_log( 'DND Session API: Triggering automatic speaker mapping for post ' . $post_id );
+                dnd_trigger_automatic_speaker_mapping( $post_id );
+            } else {
+                error_log( 'DND Session API: Transcript is not valid array after decoding' );
+            }
+        } else {
+            error_log( 'DND Session API: No processed_transcript provided' );
+        }
 
         return new WP_REST_Response( array(
             'success'  => true,
