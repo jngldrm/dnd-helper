@@ -130,7 +130,8 @@ class DNDT_Session_Analysis {
      * Ruft die Gemini AI API auf.
      */
     private function call_gemini_api( $api_key, $prompt ) {
-        $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=' . $api_key;
+        $model = get_option( 'dndt_gemini_model', 'gemini-2.0-flash-thinking-exp' );
+    $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . $api_key;
         
         $body = array(
             'contents' => array(
@@ -171,8 +172,12 @@ class DNDT_Session_Analysis {
         
         $data = json_decode( $response_body, true );
         
+        // Debug: Log the actual API response structure
+        error_log( 'Gemini API Response (Speaker Mapping): ' . print_r( $data, true ) );
+        
         if ( ! isset( $data['candidates'][0]['content']['parts'][0]['text'] ) ) {
-            return new WP_Error( 'gemini_api_error', 'Unerwartete API-Antwort' );
+            error_log( 'Gemini API Error: Expected structure not found in response' );
+            return new WP_Error( 'gemini_api_error', 'Unerwartete API-Antwort. Response: ' . substr( $response_body, 0, 500 ) );
         }
         
         return $data['candidates'][0]['content']['parts'][0]['text'];
@@ -231,8 +236,7 @@ function dnd_get_prompt_template( $filename ) {
     }
     
     // Pfad zur Prompt-Datei erstellen
-    $plugin_dir = plugin_dir_path( dirname( dirname( __FILE__ ) ) );
-    $prompt_path = $plugin_dir . 'prompts/' . $filename;
+    $prompt_path = DND_HELPER_PLUGIN_DIR . 'prompts/' . $filename;
     
     // Prüfen ob Datei existiert und lesbar ist
     if ( ! file_exists( $prompt_path ) || ! is_readable( $prompt_path ) ) {
@@ -530,7 +534,16 @@ function dnd_trigger_automatic_speaker_mapping( $session_id ) {
  * @return string|WP_Error AI-Antwort oder WP_Error bei Fehler
  */
 function dnd_call_gemini_api( $api_key, $prompt ) {
-    $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=' . $api_key;
+    $model = get_option( 'dndt_gemini_model', 'gemini-2.0-flash-thinking-exp' );
+    $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . $api_key;
+    
+    // Set timeout based on model type
+    $timeout = 300; // Default 5 minutes
+    if ( strpos( $model, '2.5-pro' ) !== false ) {
+        $timeout = 600; // 10 minutes for Pro models
+    } elseif ( strpos( $model, 'thinking' ) !== false ) {
+        $timeout = 480; // 8 minutes for thinking models
+    }
     
     $body = array(
         'contents' => array(
@@ -546,7 +559,7 @@ function dnd_call_gemini_api( $api_key, $prompt ) {
             'temperature' => 0.7,
             'topK' => 40,
             'topP' => 0.95,
-            'maxOutputTokens' => 8192,
+            'maxOutputTokens' => 32768,
         )
     );
     
@@ -555,7 +568,7 @@ function dnd_call_gemini_api( $api_key, $prompt ) {
             'Content-Type' => 'application/json'
         ),
         'body' => json_encode( $body ),
-        'timeout' => 120
+        'timeout' => $timeout
     ) );
     
     if ( is_wp_error( $response ) ) {
@@ -571,8 +584,18 @@ function dnd_call_gemini_api( $api_key, $prompt ) {
     
     $data = json_decode( $response_body, true );
     
+    // Debug: Log the actual API response structure
+    error_log( 'Gemini API Response (Campaign Update): ' . print_r( $data, true ) );
+    
     if ( ! isset( $data['candidates'][0]['content']['parts'][0]['text'] ) ) {
-        return new WP_Error( 'gemini_api_error', 'Unerwartete API-Antwort' );
+        error_log( 'Gemini API Error: Expected structure not found in response' );
+        return new WP_Error( 'gemini_api_error', 'Unerwartete API-Antwort. Response: ' . substr( $response_body, 0, 500 ) );
+    }
+    
+    // Check if response was truncated due to token limits
+    if ( isset( $data['candidates'][0]['finishReason'] ) && $data['candidates'][0]['finishReason'] === 'MAX_TOKENS' ) {
+        error_log( 'Gemini API Warning: Response was truncated due to MAX_TOKENS limit' );
+        return new WP_Error( 'gemini_api_error', 'KI-Antwort wurde wegen Token-Limit abgeschnitten. Bitte versuchen Sie es mit kürzeren Eingaben erneut.' );
     }
     
     return $data['candidates'][0]['content']['parts'][0]['text'];

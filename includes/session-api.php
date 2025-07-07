@@ -81,14 +81,20 @@ class DNDT_Session_API {
             
             foreach ( $params['processed_transcript'] as $entry ) {
                 if ( isset( $entry['speaker'] ) && isset( $entry['text'] ) ) {
-                    $speaker = sanitize_text_field( $entry['speaker'] );
+                    $speaker_raw = sanitize_text_field( $entry['speaker'] );
                     $text = sanitize_textarea_field( $entry['text'] );
                     
-                    // Speaker-Info für Metadaten extrahieren
-                    $speakers_found[] = $speaker;
+                    // Normalisiere Speaker-Namen: "A" → "Speaker A", "B" → "Speaker B"
+                    $speaker_normalized = $speaker_raw;
+                    if ( preg_match( '/^[A-Z]$/', $speaker_raw ) ) {
+                        $speaker_normalized = 'Speaker ' . $speaker_raw;
+                    }
+                    
+                    // Speaker-Info für Metadaten extrahieren (normalisiert)
+                    $speakers_found[] = $speaker_normalized;
                     
                     // Als Dialog formatieren
-                    $formatted_content .= "<p><strong>{$speaker}:</strong> {$text}</p>\n";
+                    $formatted_content .= "<p><strong>{$speaker_normalized}:</strong> {$text}</p>\n";
                 }
             }
             

@@ -98,6 +98,7 @@ function dnd_register_settings() {
     // Session Management API Key
     register_setting( 'dnd_helper_settings', 'dndt_api_key' );
     register_setting( 'dnd_helper_settings', 'dndt_gemini_api_key' );
+    register_setting( 'dnd_helper_settings', 'dndt_gemini_model' );
 
     // Settings Sektion
     add_settings_section(
@@ -120,6 +121,14 @@ function dnd_register_settings() {
         'dndt_gemini_api_key',
         __( 'Gemini AI API Key', 'dnd-helper' ),
         'dnd_gemini_api_key_field_callback',
+        'dnd-helper-settings',
+        'dnd_session_management_section'
+    );
+
+    add_settings_field(
+        'dndt_gemini_model',
+        __( 'AI Model', 'dnd-helper' ),
+        'dnd_gemini_model_field_callback',
         'dnd-helper-settings',
         'dnd_session_management_section'
     );
@@ -165,6 +174,30 @@ function dnd_gemini_api_key_field_callback() {
     $api_key = get_option( 'dndt_gemini_api_key' );
     echo '<input type="password" id="dndt_gemini_api_key" name="dndt_gemini_api_key" value="' . esc_attr( $api_key ) . '" class="regular-text" />';
     echo '<p class="description">' . esc_html__( 'Gemini AI API Key für die automatische Session-Analyse. Kostenlos erhältlich bei Google AI Studio.', 'dnd-helper' ) . '</p>';
+}
+
+/**
+ * Callback für das Gemini Model Auswahl-Feld.
+ */
+function dnd_gemini_model_field_callback() {
+    $current_model = get_option( 'dndt_gemini_model', 'gemini-2.0-flash-thinking-exp' );
+    
+    $available_models = array(
+        'gemini-2.5-pro' => 'Gemini 2.5 Pro',
+        'gemini-2.0-flash-thinking-exp' => 'Gemini 2.0 Flash Thinking (Experimental)',
+        'gemini-2.0-flash-exp' => 'Gemini 2.0 Flash (Experimental)', 
+        'gemini-1.5-flash' => 'Gemini 1.5 Flash',
+        'gemini-1.5-flash-8b' => 'Gemini 1.5 Flash 8B',
+        'gemini-1.5-pro' => 'Gemini 1.5 Pro'
+    );
+    
+    echo '<select id="dndt_gemini_model" name="dndt_gemini_model">';
+    foreach ( $available_models as $model_id => $model_name ) {
+        $selected = selected( $current_model, $model_id, false );
+        echo '<option value="' . esc_attr( $model_id ) . '"' . $selected . '>' . esc_html( $model_name ) . '</option>';
+    }
+    echo '</select>';
+    echo '<p class="description">' . esc_html__( 'Wählen Sie das Gemini AI Modell für die Session-Analyse. Experimentelle Modelle bieten bessere Leistung, können aber instabil sein.', 'dnd-helper' ) . '</p>';
 }
 
 /**

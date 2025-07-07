@@ -508,6 +508,32 @@ function dnd_add_campaign_meta_box() {
 add_action( 'add_meta_boxes_dnd_campaign', 'dnd_add_campaign_meta_box' );
 
 /**
+ * Fügt zusätzliche Meta Boxes für Kampagnen hinzu.
+ */
+function dnd_add_campaign_session_meta_boxes() {
+    // Meta Box für Kampagnen-Update
+    add_meta_box(
+        'dnd_campaign_session_merge',
+        __( 'Kampagne mit Session-Daten aktualisieren', 'dnd-helper' ),
+        'dnd_render_campaign_session_merge_meta_box',
+        'dnd_campaign',
+        'normal',
+        'high'
+    );
+    
+    // Meta Box für Versionshistorie
+    add_meta_box(
+        'dnd_campaign_history',
+        __( 'Versionshistorie', 'dnd-helper' ),
+        'dnd_render_campaign_history_meta_box',
+        'dnd_campaign',
+        'normal',
+        'default'
+    );
+}
+add_action( 'add_meta_boxes_dnd_campaign', 'dnd_add_campaign_session_meta_boxes' );
+
+/**
  * Rendert den Inhalt der Kampagnendaten Meta Box.
  *
  * @param WP_Post $post Das aktuelle Post-Objekt.
@@ -639,5 +665,484 @@ function dnd_add_edit_form_multipart_encoding() {
     echo ' enctype="multipart/form-data"';
 }
 add_action( 'post_edit_form_tag', 'dnd_add_edit_form_multipart_encoding' );
+
+// =========================================================================
+// == SESSION META BOXES
+// =========================================================================
+
+/**
+ * Fügt Meta Boxes für Sessions hinzu.
+ */
+function dnd_add_session_meta_boxes() {
+    // Meta Box für Sprecher-Zuordnung
+    add_meta_box(
+        'dnd_session_speaker_mapping',
+        __( 'Sprecher-Zuordnung', 'dnd-helper' ),
+        'dnd_render_speaker_mapping_meta_box',
+        'dndt_session',
+        'normal',
+        'high'
+    );
+    
+    // Meta Box für KI-Analyse & Zusammenfassung
+    add_meta_box(
+        'dnd_session_ai_summary',
+        __( 'KI-Analyse & Zusammenfassung', 'dnd-helper' ),
+        'dnd_render_ai_summary_meta_box',
+        'dndt_session',
+        'normal',
+        'high'
+    );
+}
+add_action( 'add_meta_boxes_dndt_session', 'dnd_add_session_meta_boxes' );
+
+/**
+ * Rendert die Sprecher-Zuordnung Meta Box.
+ */
+function dnd_render_speaker_mapping_meta_box( $post ) {
+    // Nonce für Sicherheit
+    wp_nonce_field( 'dnd_save_speaker_mapping', 'dnd_speaker_mapping_nonce' );
+    
+    // Lade strukturierte Transkriptdaten um Sprecher zu extrahieren
+    $transcript_data = get_post_meta( $post->ID, '_dndt_processed_transcript', true );
+    $speakers = array();
+    
+    if ( $transcript_data ) {
+        // Decode JSON if needed
+        if ( is_string( $transcript_data ) ) {
+            $transcript_data = json_decode( $transcript_data, true );
+        }
+        
+        if ( is_array( $transcript_data ) ) {
+            // Unique speakers extrahieren
+            foreach ( $transcript_data as $entry ) {
+                if ( isset( $entry['speaker'] ) && ! in_array( $entry['speaker'], $speakers ) ) {
+                    $speakers[] = $entry['speaker'];
+                }
+            }
+        }
+    }
+    
+    // Lade aktuelle Sprecher-Zuordnung
+    $current_mapping = get_post_meta( $post->ID, '_dndt_speaker_mapping', true );
+    if ( is_string( $current_mapping ) && ! empty( $current_mapping ) ) {
+        $current_mapping = json_decode( $current_mapping, true );
+    }
+    if ( ! is_array( $current_mapping ) ) {
+        $current_mapping = array();
+    }
+    
+    // Lade alle Mitspieler
+    $mitspieler_query = new WP_Query( array(
+        'post_type' => 'dndt_mitspieler',
+        'posts_per_page' => -1,
+        'orderby' => 'title',
+        'order' => 'ASC'
+    ) );
+    
+    ?>
+    <div class="dnd-speaker-mapping-container">
+        <?php if ( empty( $speakers ) ): ?>
+            <p><?php _e( 'Keine Sprecher-Daten gefunden. Diese Funktion ist nur bei Sessions mit strukturierten Transkripten verfügbar.', 'dnd-helper' ); ?></p>
+        <?php else: ?>
+            <p><?php _e( 'Ordnen Sie jeden Sprecher aus dem Transkript einem Mitspieler zu:', 'dnd-helper' ); ?></p>
+            
+            <table class="form-table">
+                <?php foreach ( $speakers as $speaker ): ?>
+                <tr>
+                    <th scope="row">
+                        <label for="speaker_mapping_<?php echo esc_attr( $speaker ); ?>">
+                            <?php echo esc_html( $speaker ); ?>
+                        </label>
+                    </th>
+                    <td>
+                        <select name="speaker_mapping[<?php echo esc_attr( $speaker ); ?>]" 
+                                id="speaker_mapping_<?php echo esc_attr( $speaker ); ?>"
+                                class="speaker-mapping-select">
+                            <option value=""><?php _e( '-- Mitspieler auswählen --', 'dnd-helper' ); ?></option>
+                            <?php
+                            if ( $mitspieler_query->have_posts() ) {
+                                while ( $mitspieler_query->have_posts() ) {
+                                    $mitspieler_query->the_post();
+                                    $selected = isset( $current_mapping[ $speaker ] ) && 
+                                               $current_mapping[ $speaker ] == get_the_ID() ? 'selected' : '';
+                                    echo '<option value="' . get_the_ID() . '" ' . $selected . '>' . 
+                                         esc_html( get_the_title() ) . '</option>';
+                                }
+                                wp_reset_postdata();
+                            }
+                            ?>
+                        </select>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </table>
+            
+            <p class="submit">
+                <button type="button" id="save-speaker-mapping" class="button button-primary">
+                    <?php _e( 'Sprecher-Zuordnung speichern', 'dnd-helper' ); ?>
+                </button>
+                <span id="speaker-mapping-status" style="margin-left: 10px;"></span>
+            </p>
+        <?php endif; ?>
+    </div>
+    
+    <script type="text/javascript">
+    jQuery(document).ready(function($) {
+        $('#save-speaker-mapping').on('click', function() {
+            var button = $(this);
+            var status = $('#speaker-mapping-status');
+            
+            button.prop('disabled', true).text('<?php _e( 'Speichere...', 'dnd-helper' ); ?>');
+            status.html('');
+            
+            // Sammle alle Zuordnungen
+            var mappings = {};
+            $('.speaker-mapping-select').each(function() {
+                var name = $(this).attr('name');
+                var speaker = name.match(/speaker_mapping\[(.*?)\]/)[1];
+                var mitspielerId = $(this).val();
+                if (mitspielerId) {
+                    mappings[speaker] = parseInt(mitspielerId);
+                }
+            });
+            
+            // AJAX-Aufruf
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'dndt_save_speaker_mapping',
+                    post_id: <?php echo $post->ID; ?>,
+                    mappings: mappings,
+                    nonce: $('#dnd_speaker_mapping_nonce').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        status.html('<span style="color: green;"><?php _e( 'Gespeichert!', 'dnd-helper' ); ?></span>');
+                    } else {
+                        status.html('<span style="color: red;">' + response.data.message + '</span>');
+                    }
+                },
+                error: function() {
+                    status.html('<span style="color: red;"><?php _e( 'Fehler beim Speichern', 'dnd-helper' ); ?></span>');
+                },
+                complete: function() {
+                    button.prop('disabled', false).text('<?php _e( 'Sprecher-Zuordnung speichern', 'dnd-helper' ); ?>');
+                }
+            });
+        });
+    });
+    </script>
+    <?php
+}
+
+/**
+ * Rendert die KI-Analyse & Zusammenfassung Meta Box.
+ */
+function dnd_render_ai_summary_meta_box( $post ) {
+    // Nonce für Sicherheit
+    wp_nonce_field( 'dnd_generate_summary', 'dnd_generate_summary_nonce' );
+    
+    // Lade aktuelle Zusammenfassung
+    $current_summary = get_post_meta( $post->ID, '_dndt_session_summary', true );
+    
+    ?>
+    <div class="dnd-ai-summary-container">
+        <p><?php _e( 'Generieren Sie eine KI-basierte Zusammenfassung dieser Session:', 'dnd-helper' ); ?></p>
+        
+        <p class="submit">
+            <button type="button" id="generate-session-summary" class="button button-primary">
+                <?php _e( 'Zusammenfassung generieren', 'dnd-helper' ); ?>
+            </button>
+            <span id="summary-loading" style="display: none; margin-left: 10px;">
+                <?php _e( 'Generiere Zusammenfassung...', 'dnd-helper' ); ?>
+                <span class="spinner" style="visibility: visible; float: none;"></span>
+            </span>
+        </p>
+        
+        <div class="summary-output">
+            <label for="session-summary-textarea"><?php _e( 'Generierte Zusammenfassung:', 'dnd-helper' ); ?></label>
+            <textarea id="session-summary-textarea" rows="15" style="width: 100%;" readonly><?php echo esc_textarea( $current_summary ); ?></textarea>
+        </div>
+    </div>
+    
+    <script type="text/javascript">
+    jQuery(document).ready(function($) {
+        $('#generate-session-summary').on('click', function() {
+            var button = $(this);
+            var loading = $('#summary-loading');
+            var textarea = $('#session-summary-textarea');
+            
+            button.prop('disabled', true);
+            loading.show();
+            
+            // AJAX-Aufruf
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'dndt_summarize_session',
+                    post_id: <?php echo $post->ID; ?>,
+                    nonce: $('#dnd_generate_summary_nonce').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        textarea.val(response.data.summary);
+                    } else {
+                        alert('Fehler: ' + response.data.message);
+                    }
+                },
+                error: function() {
+                    alert('<?php _e( 'Fehler bei der Zusammenfassung', 'dnd-helper' ); ?>');
+                },
+                complete: function() {
+                    button.prop('disabled', false);
+                    loading.hide();
+                }
+            });
+        });
+    });
+    </script>
+    <?php
+}
+
+/**
+ * Rendert die Campaign-Session-Merge Meta Box.
+ */
+function dnd_render_campaign_session_merge_meta_box( $post ) {
+    // Nonce für Sicherheit
+    wp_nonce_field( 'dnd_merge_campaign', 'dnd_merge_campaign_nonce' );
+    
+    // Lade Sessions mit Zusammenfassungen
+    $sessions_query = new WP_Query( array(
+        'post_type' => 'dndt_session',
+        'posts_per_page' => -1,
+        'meta_query' => array(
+            array(
+                'key' => '_dndt_session_summary',
+                'compare' => 'EXISTS'
+            )
+        ),
+        'orderby' => 'date',
+        'order' => 'DESC'
+    ) );
+    
+    ?>
+    <div class="dnd-campaign-merge-container">
+        <?php if ( ! $sessions_query->have_posts() ): ?>
+            <p><?php _e( 'Keine Sessions mit Zusammenfassungen gefunden.', 'dnd-helper' ); ?></p>
+        <?php else: ?>
+            <p><?php _e( 'Wählen Sie eine Session aus, um die Kampagnendaten zu aktualisieren:', 'dnd-helper' ); ?></p>
+            
+            <table class="form-table">
+                <tr>
+                    <th scope="row">
+                        <label for="session-select"><?php _e( 'Session auswählen:', 'dnd-helper' ); ?></label>
+                    </th>
+                    <td>
+                        <select id="session-select" style="width: 100%; max-width: 400px;">
+                            <option value=""><?php _e( '-- Session auswählen --', 'dnd-helper' ); ?></option>
+                            <?php
+                            while ( $sessions_query->have_posts() ) {
+                                $sessions_query->the_post();
+                                echo '<option value="' . get_the_ID() . '">' . 
+                                     esc_html( get_the_title() ) . ' (' . get_the_date( 'd.m.Y' ) . ')</option>';
+                            }
+                            wp_reset_postdata();
+                            ?>
+                        </select>
+                    </td>
+                </tr>
+            </table>
+            
+            <p class="submit">
+                <button type="button" id="merge-campaign-button" class="button button-primary">
+                    <?php _e( 'Kampagnen-Daten aktualisieren', 'dnd-helper' ); ?>
+                </button>
+                <span id="merge-loading" style="display: none; margin-left: 10px;">
+                    <?php _e( 'Aktualisiere Kampagne...', 'dnd-helper' ); ?>
+                    <span class="spinner" style="visibility: visible; float: none;"></span>
+                </span>
+            </p>
+            
+            <div id="merge-status" style="margin-top: 10px;"></div>
+        <?php endif; ?>
+    </div>
+    
+    <script type="text/javascript">
+    jQuery(document).ready(function($) {
+        $('#merge-campaign-button').on('click', function() {
+            var button = $(this);
+            var loading = $('#merge-loading');
+            var status = $('#merge-status');
+            var sessionId = $('#session-select').val();
+            
+            if (!sessionId) {
+                alert('<?php _e( 'Bitte wählen Sie eine Session aus.', 'dnd-helper' ); ?>');
+                return;
+            }
+            
+            button.prop('disabled', true);
+            loading.show();
+            status.html('');
+            
+            // AJAX-Aufruf
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'dndt_merge_campaign_with_session',
+                    campaign_id: <?php echo $post->ID; ?>,
+                    session_id: sessionId,
+                    nonce: $('#dnd_merge_campaign_nonce').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        status.html('<div class="notice notice-success"><p>' + response.data.message + '</p></div>');
+                        // Seite nach 2 Sekunden neu laden, um aktualisierte Daten zu zeigen
+                        setTimeout(function() {
+                            location.reload();
+                        }, 2000);
+                    } else {
+                        status.html('<div class="notice notice-error"><p>Fehler: ' + response.data.message + '</p></div>');
+                    }
+                },
+                error: function() {
+                    status.html('<div class="notice notice-error"><p><?php _e( 'Fehler beim Aktualisieren der Kampagne', 'dnd-helper' ); ?></p></div>');
+                },
+                complete: function() {
+                    button.prop('disabled', false);
+                    loading.hide();
+                }
+            });
+        });
+    });
+    </script>
+    <?php
+}
+
+/**
+ * Rendert die Campaign History Meta Box.
+ */
+function dnd_render_campaign_history_meta_box( $post ) {
+    // Lade Versionshistorie
+    $history = get_post_meta( $post->ID, '_dnd_campaign_json_history', true );
+    
+    if ( ! is_array( $history ) || empty( $history ) ) {
+        echo '<p>' . __( 'Keine Versionshistorie verfügbar.', 'dnd-helper' ) . '</p>';
+        return;
+    }
+    
+    ?>
+    <div class="dnd-campaign-history-container">
+        <p><?php _e( 'Frühere Versionen der Kampagnendaten:', 'dnd-helper' ); ?></p>
+        
+        <table class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th><?php _e( 'Zeitstempel', 'dnd-helper' ); ?></th>
+                    <th><?php _e( 'Aktionen', 'dnd-helper' ); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ( $history as $index => $version ): ?>
+                <tr>
+                    <td>
+                        <?php 
+                        $datetime = new DateTime( $version['timestamp'] );
+                        echo esc_html( $datetime->format( 'd.m.Y H:i:s' ) );
+                        ?>
+                    </td>
+                    <td>
+                        <button type="button" class="button view-version" data-index="<?php echo $index; ?>">
+                            <?php _e( 'Ansehen', 'dnd-helper' ); ?>
+                        </button>
+                        <button type="button" class="button restore-version" data-index="<?php echo $index; ?>">
+                            <?php _e( 'Wiederherstellen', 'dnd-helper' ); ?>
+                        </button>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        
+        <!-- Modal für JSON-Anzeige -->
+        <div id="version-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border: 1px solid #ccc; padding: 20px; z-index: 10000; width: 80%; max-width: 800px; max-height: 80%; overflow: auto;">
+            <h3><?php _e( 'JSON-Daten der Version', 'dnd-helper' ); ?></h3>
+            <textarea id="version-json" style="width: 100%; height: 400px; font-family: monospace;" readonly></textarea>
+            <p>
+                <button type="button" id="close-modal" class="button"><?php _e( 'Schließen', 'dnd-helper' ); ?></button>
+            </p>
+        </div>
+        <div id="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999;"></div>
+    </div>
+    
+    <script type="text/javascript">
+    jQuery(document).ready(function($) {
+        var historyData = <?php echo wp_json_encode( $history ); ?>;
+        
+        // Version ansehen
+        $('.view-version').on('click', function() {
+            var index = $(this).data('index');
+            var versionData = historyData[index];
+            
+            if (versionData && versionData.data) {
+                // JSON formatiert anzeigen
+                var formattedJson = JSON.stringify(JSON.parse(versionData.data), null, 2);
+                $('#version-json').val(formattedJson);
+                $('#modal-overlay, #version-modal').show();
+            }
+        });
+        
+        // Modal schließen
+        $('#close-modal, #modal-overlay').on('click', function() {
+            $('#modal-overlay, #version-modal').hide();
+        });
+        
+        // Version wiederherstellen
+        $('.restore-version').on('click', function() {
+            var index = $(this).data('index');
+            var versionData = historyData[index];
+            
+            if (!confirm('<?php _e( 'Sind Sie sicher, dass Sie diese Version wiederherstellen möchten? Die aktuellen Daten werden automatisch als Backup gespeichert.', 'dnd-helper' ); ?>')) {
+                return;
+            }
+            
+            if (versionData && versionData.data) {
+                var button = $(this);
+                var originalText = button.text();
+                button.prop('disabled', true).text('<?php _e( 'Wiederherstellung läuft...', 'dnd-helper' ); ?>');
+                
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'dndt_restore_campaign_version',
+                        campaign_id: <?php echo $post->ID; ?>,
+                        version_index: index,
+                        nonce: '<?php echo wp_create_nonce( 'dnd_restore_campaign_version' ); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            alert('<?php _e( 'Version erfolgreich wiederhergestellt! Die Seite wird neu geladen.', 'dnd-helper' ); ?>');
+                            location.reload();
+                        } else {
+                            alert('<?php _e( 'Fehler:', 'dnd-helper' ); ?> ' + response.data.message);
+                        }
+                    },
+                    error: function() {
+                        alert('<?php _e( 'Fehler bei der Wiederherstellung', 'dnd-helper' ); ?>');
+                    },
+                    complete: function() {
+                        button.prop('disabled', false).text(originalText);
+                    }
+                });
+            }
+        });
+    });
+    </script>
+    <?php
+}
 
 ?>

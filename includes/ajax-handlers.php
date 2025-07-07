@@ -737,4 +737,387 @@ function dnd_ajax_update_limited_use() {
 }
 add_action( 'wp_ajax_dnd_update_limited_use', 'dnd_ajax_update_limited_use' );
 
+// =========================================================================
+// == SESSION ANALYSIS AJAX HANDLERS
+// =========================================================================
+
+/**
+ * AJAX Handler zum Speichern der Sprecher-Zuordnung.
+ */
+function dndt_ajax_save_speaker_mapping() {
+    // Sicherheit: Nonce prüfen
+    if ( ! wp_verify_nonce( $_POST['nonce'], 'dnd_save_speaker_mapping' ) ) {
+        wp_send_json_error( array( 'message' => 'Sicherheitsfehler' ) );
+        return;
+    }
+    
+    $post_id = isset( $_POST['post_id'] ) ? intval( $_POST['post_id'] ) : 0;
+    $mappings = isset( $_POST['mappings'] ) ? $_POST['mappings'] : array();
+    
+    if ( ! $post_id ) {
+        wp_send_json_error( array( 'message' => 'Ungültige Post-ID' ) );
+        return;
+    }
+    
+    // Berechtigungen prüfen
+    if ( ! current_user_can( 'edit_post', $post_id ) ) {
+        wp_send_json_error( array( 'message' => 'Keine Berechtigung' ) );
+        return;
+    }
+    
+    $post = get_post( $post_id );
+    if ( ! $post || $post->post_type !== 'dndt_session' ) {
+        wp_send_json_error( array( 'message' => 'Session nicht gefunden' ) );
+        return;
+    }
+    
+    // Mappings validieren und bereinigen
+    $clean_mappings = array();
+    foreach ( $mappings as $speaker => $mitspieler_id ) {
+        $speaker_clean = sanitize_text_field( $speaker );
+        $mitspieler_id_clean = intval( $mitspieler_id );
+        
+        // Prüfen ob Mitspieler existiert
+        if ( $mitspieler_id_clean > 0 && get_post_type( $mitspieler_id_clean ) === 'dndt_mitspieler' ) {
+            $clean_mappings[ $speaker_clean ] = $mitspieler_id_clean;
+        }
+    }
+    
+    // Mapping speichern
+    update_post_meta( $post_id, '_dndt_speaker_mapping', wp_json_encode( $clean_mappings ) );
+    
+    wp_send_json_success( array( 'message' => 'Sprecher-Zuordnung gespeichert' ) );
+}
+add_action( 'wp_ajax_dndt_save_speaker_mapping', 'dndt_ajax_save_speaker_mapping' );
+
+/**
+ * AJAX Handler für Session-Zusammenfassung.
+ */
+function dndt_ajax_summarize_session() {
+    // Sicherheit: Nonce prüfen
+    if ( ! wp_verify_nonce( $_POST['nonce'], 'dnd_generate_summary' ) ) {
+        wp_send_json_error( array( 'message' => 'Sicherheitsfehler' ) );
+        return;
+    }
+    
+    $post_id = isset( $_POST['post_id'] ) ? intval( $_POST['post_id'] ) : 0;
+    
+    if ( ! $post_id ) {
+        wp_send_json_error( array( 'message' => 'Ungültige Post-ID' ) );
+        return;
+    }
+    
+    // Berechtigungen prüfen
+    if ( ! current_user_can( 'edit_post', $post_id ) ) {
+        wp_send_json_error( array( 'message' => 'Keine Berechtigung' ) );
+        return;
+    }
+    
+    $post = get_post( $post_id );
+    if ( ! $post || $post->post_type !== 'dndt_session' ) {
+        wp_send_json_error( array( 'message' => 'Session nicht gefunden' ) );
+        return;
+    }
+    
+    // Gemini API Key abrufen
+    $api_key = get_option( 'dndt_gemini_api_key' );
+    if ( empty( $api_key ) ) {
+        wp_send_json_error( array( 'message' => 'Gemini AI API Key ist nicht konfiguriert.' ) );
+        return;
+    }
+    
+    // Daten sammeln
+    $transcript_data = get_post_meta( $post_id, '_dndt_processed_transcript', true );
+    $speaker_mapping = get_post_meta( $post_id, '_dndt_speaker_mapping', true );
+    
+    if ( empty( $transcript_data ) ) {
+        wp_send_json_error( array( 'message' => 'Kein strukturiertes Transkript gefunden.' ) );
+        return;
+    }
+    
+    // Decode transcript data
+    if ( is_string( $transcript_data ) ) {
+        $transcript_data = json_decode( $transcript_data, true );
+    }
+    
+    // Decode speaker mapping
+    if ( is_string( $speaker_mapping ) && ! empty( $speaker_mapping ) ) {
+        $speaker_mapping = json_decode( $speaker_mapping, true );
+    }
+    if ( ! is_array( $speaker_mapping ) ) {
+        $speaker_mapping = array();
+    }
+    
+    // Mitspieler laden für Namen-Auflösung
+    $mitspieler_names = array();
+    if ( ! empty( $speaker_mapping ) ) {
+        foreach ( $speaker_mapping as $speaker => $mitspieler_id ) {
+            $mitspieler_post = get_post( $mitspieler_id );
+            if ( $mitspieler_post ) {
+                $mitspieler_names[ $speaker ] = $mitspieler_post->post_title;
+            }
+        }
+    }
+    
+    // Transkript mit Charakternamen aufbereiten
+    $formatted_transcript = '';
+    foreach ( $transcript_data as $entry ) {
+        if ( isset( $entry['speaker'] ) && isset( $entry['text'] ) ) {
+            $speaker_name = $entry['speaker'];
+            
+            // Ersetze Sprecher-Namen durch Charakter-Namen wenn verfügbar
+            if ( isset( $mitspieler_names[ $entry['speaker'] ] ) ) {
+                $speaker_name = $mitspieler_names[ $entry['speaker'] ];
+            }
+            
+            $formatted_transcript .= $speaker_name . ': ' . $entry['text'] . "\n";
+        }
+    }
+    
+    // Prompt vorbereiten
+    $prompt_template = dnd_get_prompt_template( 'summarize.md' );
+    if ( $prompt_template === false ) {
+        wp_send_json_error( array( 'message' => 'Prompt-Template nicht gefunden.' ) );
+        return;
+    }
+    
+    $prompt = dnd_replace_prompt_placeholders( $prompt_template, array(
+        'TRANSCRIPT' => $formatted_transcript
+    ) );
+    
+    // LLM-Aufruf
+    $ai_response = dnd_call_gemini_api( $api_key, $prompt );
+    
+    if ( is_wp_error( $ai_response ) ) {
+        wp_send_json_error( array( 'message' => 'Fehler bei der KI-Analyse: ' . $ai_response->get_error_message() ) );
+        return;
+    }
+    
+    // Zusammenfassung speichern
+    update_post_meta( $post_id, '_dndt_session_summary', $ai_response );
+    
+    wp_send_json_success( array( 'summary' => $ai_response ) );
+}
+add_action( 'wp_ajax_dndt_summarize_session', 'dndt_ajax_summarize_session' );
+
+// =========================================================================
+// == CAMPAIGN MERGE AJAX HANDLERS
+// =========================================================================
+
+/**
+ * AJAX Handler für Kampagnen-Update mit Session-Daten.
+ */
+function dndt_ajax_merge_campaign_with_session() {
+    // Sicherheit: Nonce prüfen
+    if ( ! wp_verify_nonce( $_POST['nonce'], 'dnd_merge_campaign' ) ) {
+        wp_send_json_error( array( 'message' => 'Sicherheitsfehler' ) );
+        return;
+    }
+    
+    $campaign_id = isset( $_POST['campaign_id'] ) ? intval( $_POST['campaign_id'] ) : 0;
+    $session_id = isset( $_POST['session_id'] ) ? intval( $_POST['session_id'] ) : 0;
+    
+    if ( ! $campaign_id || ! $session_id ) {
+        wp_send_json_error( array( 'message' => 'Ungültige IDs' ) );
+        return;
+    }
+    
+    // Berechtigungen prüfen
+    if ( ! current_user_can( 'edit_post', $campaign_id ) ) {
+        wp_send_json_error( array( 'message' => 'Keine Berechtigung für Kampagne' ) );
+        return;
+    }
+    
+    $campaign_post = get_post( $campaign_id );
+    $session_post = get_post( $session_id );
+    
+    if ( ! $campaign_post || $campaign_post->post_type !== 'dnd_campaign' ) {
+        wp_send_json_error( array( 'message' => 'Kampagne nicht gefunden' ) );
+        return;
+    }
+    
+    if ( ! $session_post || $session_post->post_type !== 'dndt_session' ) {
+        wp_send_json_error( array( 'message' => 'Session nicht gefunden' ) );
+        return;
+    }
+    
+    // Daten holen
+    $campaign_json = get_post_meta( $campaign_id, '_dnd_campaign_json_data', true );
+    $session_summary = get_post_meta( $session_id, '_dndt_session_summary', true );
+    
+    if ( empty( $campaign_json ) ) {
+        wp_send_json_error( array( 'message' => 'Keine Kampagnendaten gefunden' ) );
+        return;
+    }
+    
+    if ( empty( $session_summary ) ) {
+        wp_send_json_error( array( 'message' => 'Keine Session-Zusammenfassung gefunden' ) );
+        return;
+    }
+    
+    // Backup erstellen
+    $history = get_post_meta( $campaign_id, '_dnd_campaign_json_history', true );
+    if ( ! is_array( $history ) ) {
+        $history = array();
+    }
+    
+    // Aktuelles JSON als Backup hinzufügen
+    array_unshift( $history, array(
+        'timestamp' => current_time( 'c' ),
+        'data' => $campaign_json
+    ) );
+    
+    // Nur die letzten 10 Backups behalten
+    $history = array_slice( $history, 0, 10 );
+    
+    update_post_meta( $campaign_id, '_dnd_campaign_json_history', $history );
+    
+    // Gemini API Key abrufen
+    $api_key = get_option( 'dndt_gemini_api_key' );
+    if ( empty( $api_key ) ) {
+        wp_send_json_error( array( 'message' => 'Gemini AI API Key ist nicht konfiguriert.' ) );
+        return;
+    }
+    
+    // Session-Datum bestimmen
+    $session_date = get_the_date( 'Y-m-d', $session_id );
+    
+    // Prompt vorbereiten
+    $prompt_template = dnd_get_prompt_template( 'merge.md' );
+    if ( $prompt_template === false ) {
+        wp_send_json_error( array( 'message' => 'Merge-Prompt-Template nicht gefunden.' ) );
+        return;
+    }
+    
+    $prompt = dnd_replace_prompt_placeholders( $prompt_template, array(
+        'SESSION_SUMMARY' => $session_summary,
+        'SESSION_DATE' => $session_date,
+        'CAMPAIGN_JSON' => $campaign_json
+    ) );
+    
+    // LLM-Aufruf
+    $ai_response = dnd_call_gemini_api( $api_key, $prompt );
+    
+    if ( is_wp_error( $ai_response ) ) {
+        wp_send_json_error( array( 'message' => 'Fehler bei der KI-Verarbeitung: ' . $ai_response->get_error_message() ) );
+        return;
+    }
+    
+    // JSON-Validierung mit robustem Parsing
+    error_log( 'Campaign Merge: AI Response received: ' . substr( $ai_response, 0, 1000 ) );
+    
+    // Versuche zuerst direktes JSON-Parsing
+    $new_campaign_data = json_decode( $ai_response, true );
+    
+    // Falls das fehlschlägt, versuche JSON aus der Antwort zu extrahieren
+    if ( json_last_error() !== JSON_ERROR_NONE ) {
+        error_log( 'Campaign Merge: Direct JSON parsing failed, trying extraction' );
+        
+        // Versuche JSON-Block aus der Antwort zu extrahieren (auch aus Markdown Code Blocks)
+        if ( preg_match( '/```json\s*(\{.*?\})\s*```/s', $ai_response, $matches ) || 
+             preg_match( '/(\{.*\})/s', $ai_response, $matches ) ) {
+            $extracted_json = $matches[1];
+            error_log( 'Campaign Merge: Extracted JSON: ' . substr( $extracted_json, 0, 1000 ) );
+            
+            $new_campaign_data = json_decode( $extracted_json, true );
+            if ( json_last_error() === JSON_ERROR_NONE ) {
+                $ai_response = $extracted_json; // Verwende das extrahierte JSON
+                error_log( 'Campaign Merge: JSON extraction successful' );
+            } else {
+                error_log( 'Campaign Merge: JSON extraction also failed: ' . json_last_error_msg() );
+            }
+        }
+    }
+    
+    // Final check
+    if ( json_last_error() !== JSON_ERROR_NONE ) {
+        $error_msg = 'LLM hat ungültiges JSON zurückgegeben. Fehler: ' . json_last_error_msg();
+        error_log( 'Campaign Merge: Final JSON parsing failed: ' . $error_msg );
+        wp_send_json_error( array( 'message' => $error_msg ) );
+        return;
+    }
+    
+    // Neue Kampagnendaten speichern
+    update_post_meta( $campaign_id, '_dnd_campaign_json_data', $ai_response );
+    
+    // Titel synchronisieren falls nötig
+    if ( isset( $new_campaign_data['campaignTitle'] ) ) {
+        dnd_sync_campaign_title( $campaign_id, $new_campaign_data );
+    }
+    
+    wp_send_json_success( array( 'message' => 'Kampagne erfolgreich aktualisiert' ) );
+}
+add_action( 'wp_ajax_dndt_merge_campaign_with_session', 'dndt_ajax_merge_campaign_with_session' );
+
+/**
+ * AJAX Handler für Kampagnen-Wiederherstellung aus Versionshistorie.
+ */
+function dndt_ajax_restore_campaign_version() {
+    // Sicherheit: Nonce prüfen
+    if ( ! wp_verify_nonce( $_POST['nonce'], 'dnd_restore_campaign_version' ) ) {
+        wp_send_json_error( array( 'message' => 'Sicherheitsfehler' ) );
+        return;
+    }
+    
+    $campaign_id = isset( $_POST['campaign_id'] ) ? intval( $_POST['campaign_id'] ) : 0;
+    $version_index = isset( $_POST['version_index'] ) ? intval( $_POST['version_index'] ) : -1;
+    
+    if ( ! $campaign_id || $version_index < 0 ) {
+        wp_send_json_error( array( 'message' => 'Ungültige Parameter' ) );
+        return;
+    }
+    
+    // Berechtigungen prüfen
+    if ( ! current_user_can( 'edit_post', $campaign_id ) ) {
+        wp_send_json_error( array( 'message' => 'Keine Berechtigung' ) );
+        return;
+    }
+    
+    $campaign_post = get_post( $campaign_id );
+    if ( ! $campaign_post || $campaign_post->post_type !== 'dnd_campaign' ) {
+        wp_send_json_error( array( 'message' => 'Kampagne nicht gefunden' ) );
+        return;
+    }
+    
+    // Versionshistorie laden
+    $history = get_post_meta( $campaign_id, '_dnd_campaign_json_history', true );
+    if ( ! is_array( $history ) || ! isset( $history[ $version_index ] ) ) {
+        wp_send_json_error( array( 'message' => 'Version nicht gefunden' ) );
+        return;
+    }
+    
+    $version_to_restore = $history[ $version_index ];
+    if ( ! isset( $version_to_restore['data'] ) ) {
+        wp_send_json_error( array( 'message' => 'Ungültige Versionsdaten' ) );
+        return;
+    }
+    
+    // Aktuellen Stand als Backup speichern bevor Wiederherstellung
+    $current_campaign_json = get_post_meta( $campaign_id, '_dnd_campaign_json_data', true );
+    if ( ! empty( $current_campaign_json ) ) {
+        // Backup der aktuellen Version vor Wiederherstellung
+        array_unshift( $history, array(
+            'timestamp' => current_time( 'c' ),
+            'data' => $current_campaign_json
+        ) );
+        
+        // Nur die letzten 10 Backups behalten
+        $history = array_slice( $history, 0, 10 );
+        update_post_meta( $campaign_id, '_dnd_campaign_json_history', $history );
+    }
+    
+    // Version wiederherstellen
+    $restored_data = $version_to_restore['data'];
+    update_post_meta( $campaign_id, '_dnd_campaign_json_data', $restored_data );
+    
+    // Titel synchronisieren falls nötig
+    $decoded_data = json_decode( $restored_data, true );
+    if ( $decoded_data && isset( $decoded_data['campaignTitle'] ) ) {
+        dnd_sync_campaign_title( $campaign_id, $decoded_data );
+    }
+    
+    wp_send_json_success( array( 'message' => 'Version erfolgreich wiederhergestellt' ) );
+}
+add_action( 'wp_ajax_dndt_restore_campaign_version', 'dndt_ajax_restore_campaign_version' );
+
 ?>
