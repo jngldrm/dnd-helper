@@ -3,7 +3,7 @@
  * Plugin Name:       D&D Helper
  * Plugin URI:        # (Optional: Deine Website)
  * Description:       Ein Plugin zur Unterstützung von Dungeons & Dragons Spielen, inkl. Charakterverwaltung und Würfel-Chat.
- * Version:           0.1.0
+ * Version:           0.1.1
  * Author:            Dein Name & KI-Assistent
  * Author URI:        # (Optional: Deine Website)
  * License:           GPL v2 or later

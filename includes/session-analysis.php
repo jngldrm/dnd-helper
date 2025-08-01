@@ -59,9 +59,12 @@ class DNDT_Session_Analysis {
         // Existierende AI-Analyse abrufen
         $existing_analysis = get_post_meta( $post_id, '_dndt_ai_auswertung', true );
         
+        // Formatiere das Transkript mit Sprecher-Zuordnung
+        $formatted_content = dnd_format_transcript_with_speakers( $post_id );
+        
         wp_send_json_success( array(
             'title' => get_the_title( $post_id ),
-            'content' => apply_filters( 'the_content', $post->post_content ),
+            'content' => apply_filters( 'the_content', $formatted_content ),
             'date' => get_the_date( 'd.m.Y H:i', $post_id ),
             'has_speaker_diarization' => $has_speaker_diarization,
             'has_analysis' => $has_ausgewertet,
@@ -599,4 +602,78 @@ function dnd_call_gemini_api( $api_key, $prompt ) {
     }
     
     return $data['candidates'][0]['content']['parts'][0]['text'];
+}
+
+/**
+ * Formatiert ein Transkript mit Sprecher-Zuordnung.
+ * 
+ * @param int $session_id ID der Session
+ * @return string Formatiertes Transkript mit Charakternamen
+ */
+function dnd_format_transcript_with_speakers( $session_id ) {
+    // Strukturierte Transkriptdaten abrufen
+    $transcript_data = get_post_meta( $session_id, '_dndt_processed_transcript', true );
+    
+    if ( empty( $transcript_data ) ) {
+        // Fallback auf originalen Content
+        $session = get_post( $session_id );
+        return $session ? $session->post_content : '';
+    }
+    
+    // Decode JSON if needed
+    if ( is_string( $transcript_data ) ) {
+        $transcript_data = json_decode( $transcript_data, true );
+    }
+    
+    if ( ! is_array( $transcript_data ) ) {
+        // Fallback auf originalen Content
+        $session = get_post( $session_id );
+        return $session ? $session->post_content : '';
+    }
+    
+    // Sprecher-Zuordnung abrufen
+    $speaker_mapping = get_post_meta( $session_id, '_dndt_speaker_mapping', true );
+    if ( is_string( $speaker_mapping ) && ! empty( $speaker_mapping ) ) {
+        $speaker_mapping = json_decode( $speaker_mapping, true );
+    }
+    if ( ! is_array( $speaker_mapping ) ) {
+        $speaker_mapping = array();
+    }
+    
+    // Transkript formatieren
+    $formatted_content = '';
+    foreach ( $transcript_data as $entry ) {
+        if ( isset( $entry['speaker'] ) && isset( $entry['text'] ) ) {
+            $speaker_raw = $entry['speaker'];
+            $text = $entry['text'];
+            
+            // Normalisiere Speaker-Namen: "A" → "Speaker A", "B" → "Speaker B"
+            $speaker_normalized = $speaker_raw;
+            if ( preg_match( '/^[A-Z]$/', $speaker_raw ) ) {
+                $speaker_normalized = 'Speaker ' . $speaker_raw;
+            }
+            
+            // Prüfe ob eine Zuordnung existiert
+            if ( isset( $speaker_mapping[ $speaker_normalized ] ) ) {
+                $mitspieler_id = $speaker_mapping[ $speaker_normalized ];
+                $mitspieler = get_post( $mitspieler_id );
+                
+                if ( $mitspieler ) {
+                    // Verwende den Charakternamen aus der Zuordnung
+                    $display_name = $mitspieler->post_title;
+                } else {
+                    // Fallback auf normalisierten Speaker-Namen
+                    $display_name = $speaker_normalized;
+                }
+            } else {
+                // Fallback auf normalisierten Speaker-Namen
+                $display_name = $speaker_normalized;
+            }
+            
+            // Als Dialog formatieren
+            $formatted_content .= "<p><strong>{$display_name}:</strong> " . esc_html( $text ) . "</p>\n";
+        }
+    }
+    
+    return $formatted_content;
 }

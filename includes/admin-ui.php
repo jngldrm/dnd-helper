@@ -99,6 +99,7 @@ function dnd_register_settings() {
     register_setting( 'dnd_helper_settings', 'dndt_api_key' );
     register_setting( 'dnd_helper_settings', 'dndt_gemini_api_key' );
     register_setting( 'dnd_helper_settings', 'dndt_gemini_model' );
+    register_setting( 'dnd_helper_settings', 'dndt_custom_vocabulary' );
 
     // Settings Sektion
     add_settings_section(
@@ -129,6 +130,14 @@ function dnd_register_settings() {
         'dndt_gemini_model',
         __( 'AI Model', 'dnd-helper' ),
         'dnd_gemini_model_field_callback',
+        'dnd-helper-settings',
+        'dnd_session_management_section'
+    );
+
+    add_settings_field(
+        'dndt_custom_vocabulary',
+        __( 'Custom Vocabulary', 'dnd-helper' ),
+        'dnd_custom_vocabulary_field_callback',
         'dnd-helper-settings',
         'dnd_session_management_section'
     );
@@ -198,6 +207,15 @@ function dnd_gemini_model_field_callback() {
     }
     echo '</select>';
     echo '<p class="description">' . esc_html__( 'Wählen Sie das Gemini AI Modell für die Session-Analyse. Experimentelle Modelle bieten bessere Leistung, können aber instabil sein.', 'dnd-helper' ) . '</p>';
+}
+
+/**
+ * Callback für das Custom Vocabulary Feld.
+ */
+function dnd_custom_vocabulary_field_callback() {
+    $custom_vocabulary = get_option( 'dndt_custom_vocabulary', '' );
+    echo '<textarea id="dndt_custom_vocabulary" name="dndt_custom_vocabulary" rows="10" cols="50" class="large-text">' . esc_textarea( $custom_vocabulary ) . '</textarea>';
+    echo '<p class="description">' . esc_html__( 'Geben Sie hier ein Wort pro Zeile ein. Diese Wörter werden als Custom Vocabulary für die Spracherkennung verwendet.', 'dnd-helper' ) . '</p>';
 }
 
 /**

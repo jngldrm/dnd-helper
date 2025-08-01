@@ -35,6 +35,13 @@ class DNDT_Session_API {
             'callback'            => array( $this, 'get_mitspieler' ),
             'permission_callback' => array( $this, 'check_api_permission' ),
         ) );
+
+        // Endpoint zum Abrufen des Custom Vocabulary
+        register_rest_route( $namespace, '/vocabulary', array(
+            'methods'             => 'GET',
+            'callback'            => array( $this, 'get_vocabulary' ),
+            'permission_callback' => array( $this, 'check_api_permission' ),
+        ) );
     }
 
     /**
@@ -221,6 +228,21 @@ class DNDT_Session_API {
         return new WP_REST_Response( array(
             'mitspieler' => $mitspieler,
         ), 200 );
+    }
+
+    /**
+     * Gibt das Custom Vocabulary zurück.
+     */
+    public function get_vocabulary( WP_REST_Request $request ) {
+        $vocabulary_text = get_option( 'dndt_custom_vocabulary', '' );
+        
+        // Zeilenumbrüche aufteilen und leere Zeilen filtern
+        $vocabulary_lines = array_filter( array_map( 'trim', explode( "\n", $vocabulary_text ) ) );
+        
+        // In ein Array umwandeln
+        $vocabulary = array_values( $vocabulary_lines );
+        
+        return rest_ensure_response( $vocabulary );
     }
 }
 

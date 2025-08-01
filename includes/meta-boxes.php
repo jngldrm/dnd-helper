@@ -684,6 +684,16 @@ function dnd_add_session_meta_boxes() {
         'high'
     );
     
+    // Meta Box für Transkripte
+    add_meta_box(
+        'dnd_session_transcripts',
+        __( 'Transkripte', 'dnd-helper' ),
+        'dnd_render_transcripts_meta_box',
+        'dndt_session',
+        'normal',
+        'high'
+    );
+    
     // Meta Box für KI-Analyse & Zusammenfassung
     add_meta_box(
         'dnd_session_ai_summary',
@@ -703,7 +713,7 @@ function dnd_render_speaker_mapping_meta_box( $post ) {
     // Nonce für Sicherheit
     wp_nonce_field( 'dnd_save_speaker_mapping', 'dnd_speaker_mapping_nonce' );
     
-    // Lade strukturierte Transkriptdaten um Sprecher zu extrahieren
+    // Extrahiere Speaker-Namen immer direkt aus dem strukturierten Transkript
     $transcript_data = get_post_meta( $post->ID, '_dndt_processed_transcript', true );
     $speakers = array();
     
@@ -714,13 +724,28 @@ function dnd_render_speaker_mapping_meta_box( $post ) {
         }
         
         if ( is_array( $transcript_data ) ) {
-            // Unique speakers extrahieren
+            // Unique speakers extrahieren und normalisieren
             foreach ( $transcript_data as $entry ) {
-                if ( isset( $entry['speaker'] ) && ! in_array( $entry['speaker'], $speakers ) ) {
-                    $speakers[] = $entry['speaker'];
+                if ( isset( $entry['speaker'] ) ) {
+                    $speaker_raw = $entry['speaker'];
+                    
+                    // Normalisiere Speaker-Namen: "A" → "Speaker A", "B" → "Speaker B"
+                    $speaker_normalized = $speaker_raw;
+                    if ( preg_match( '/^[A-Z]$/', $speaker_raw ) ) {
+                        $speaker_normalized = 'Speaker ' . $speaker_raw;
+                    }
+                    
+                    if ( ! in_array( $speaker_normalized, $speakers ) ) {
+                        $speakers[] = $speaker_normalized;
+                    }
                 }
             }
         }
+    }
+    
+    // Stelle sicher, dass $speakers ein Array ist
+    if ( ! is_array( $speakers ) ) {
+        $speakers = array();
     }
     
     // Lade aktuelle Sprecher-Zuordnung
@@ -863,7 +888,13 @@ function dnd_render_ai_summary_meta_box( $post ) {
         
         <div class="summary-output">
             <label for="session-summary-textarea"><?php _e( 'Generierte Zusammenfassung:', 'dnd-helper' ); ?></label>
-            <textarea id="session-summary-textarea" rows="15" style="width: 100%;" readonly><?php echo esc_textarea( $current_summary ); ?></textarea>
+            <textarea id="session-summary-textarea" rows="15" style="width: 100%;" placeholder="<?php _e( 'Hier wird die generierte Zusammenfassung angezeigt...', 'dnd-helper' ); ?>"><?php echo esc_textarea( $current_summary ); ?></textarea>
+            <p class="submit">
+                <button type="button" id="save-session-summary" class="button button-secondary">
+                    <?php _e( 'Zusammenfassung speichern', 'dnd-helper' ); ?>
+                </button>
+                <span id="save-summary-status" style="margin-left: 10px;"></span>
+            </p>
         </div>
     </div>
     
@@ -901,6 +932,162 @@ function dnd_render_ai_summary_meta_box( $post ) {
                     loading.hide();
                 }
             });
+        });
+        
+        // Handler für das Speichern der bearbeiteten Zusammenfassung
+        $('#save-session-summary').on('click', function() {
+            var button = $(this);
+            var status = $('#save-summary-status');
+            var textarea = $('#session-summary-textarea');
+            var summaryContent = textarea.val();
+            
+            button.prop('disabled', true).text('<?php _e( 'Speichere...', 'dnd-helper' ); ?>');
+            status.html('');
+            
+            // AJAX-Aufruf zum Speichern
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'dndt_save_session_summary',
+                    post_id: <?php echo $post->ID; ?>,
+                    summary: summaryContent,
+                    nonce: $('#dnd_generate_summary_nonce').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        status.html('<span style="color: green;"><?php _e( 'Zusammenfassung gespeichert!', 'dnd-helper' ); ?></span>');
+                        // Status nach 3 Sekunden ausblenden
+                        setTimeout(function() {
+                            status.fadeOut();
+                        }, 3000);
+                    } else {
+                        status.html('<span style="color: red;">' + response.data.message + '</span>');
+                    }
+                },
+                error: function() {
+                    status.html('<span style="color: red;"><?php _e( 'Fehler beim Speichern', 'dnd-helper' ); ?></span>');
+                },
+                complete: function() {
+                    button.prop('disabled', false).text('<?php _e( 'Zusammenfassung speichern', 'dnd-helper' ); ?>');
+                }
+            });
+        });
+    });
+    </script>
+    <?php
+}
+
+/**
+ * Rendert die Transkripte Meta Box.
+ */
+function dnd_render_transcripts_meta_box( $post ) {
+    // Hole die gespeicherten Transkripte
+    $original_transcript = get_post_meta( $post->ID, '_dndt_original_transcript', true );
+    $processed_transcript = get_post_meta( $post->ID, '_dndt_processed_transcript', true );
+    
+    // Decode processed transcript if needed
+    if ( is_string( $processed_transcript ) && ! empty( $processed_transcript ) ) {
+        $processed_data = json_decode( $processed_transcript, true );
+        if ( is_array( $processed_data ) ) {
+            // Formatiere das strukturierte Transkript für die Anzeige
+            $formatted_processed = '';
+            foreach ( $processed_data as $entry ) {
+                if ( isset( $entry['speaker'] ) && isset( $entry['text'] ) ) {
+                    $speaker = esc_html( $entry['speaker'] );
+                    $text = esc_html( $entry['text'] );
+                    $formatted_processed .= "{$speaker}: {$text}\n\n";
+                }
+            }
+        } else {
+            $formatted_processed = esc_html( $processed_transcript );
+        }
+    } else {
+        $formatted_processed = '';
+    }
+    
+    ?>
+    <div class="dnd-transcripts-container">
+        <div class="transcript-tabs">
+            <button type="button" class="transcript-tab active" data-tab="original">
+                <?php _e( 'Original-Transkript', 'dnd-helper' ); ?>
+            </button>
+            <button type="button" class="transcript-tab" data-tab="processed">
+                <?php _e( 'Strukturiertes Transkript', 'dnd-helper' ); ?>
+            </button>
+        </div>
+        
+        <div class="transcript-content">
+            <div id="original-transcript" class="transcript-panel active">
+                <label for="original-transcript-textarea">
+                    <?php _e( 'Original-Transkript:', 'dnd-helper' ); ?>
+                </label>
+                <textarea id="original-transcript-textarea" rows="20" style="width: 100%;" readonly><?php echo esc_textarea( $original_transcript ); ?></textarea>
+            </div>
+            
+            <div id="processed-transcript" class="transcript-panel">
+                <label for="processed-transcript-textarea">
+                    <?php _e( 'Strukturiertes Transkript (mit Speaker-Informationen):', 'dnd-helper' ); ?>
+                </label>
+                <textarea id="processed-transcript-textarea" rows="20" style="width: 100%;" readonly><?php echo esc_textarea( $formatted_processed ); ?></textarea>
+            </div>
+        </div>
+        
+        <?php if ( empty( $original_transcript ) && empty( $processed_transcript ) ): ?>
+            <p><em><?php _e( 'Keine Transkripte für diese Session gefunden.', 'dnd-helper' ); ?></em></p>
+        <?php endif; ?>
+    </div>
+    
+    <style>
+    .transcript-tabs {
+        margin-bottom: 10px;
+    }
+    
+    .transcript-tab {
+        background: #f1f1f1;
+        border: 1px solid #ddd;
+        padding: 8px 16px;
+        cursor: pointer;
+        margin-right: 5px;
+        border-radius: 4px 4px 0 0;
+    }
+    
+    .transcript-tab.active {
+        background: #fff;
+        border-bottom: 1px solid #fff;
+    }
+    
+    .transcript-panel {
+        display: none;
+        border: 1px solid #ddd;
+        padding: 15px;
+        background: #fff;
+        border-radius: 0 4px 4px 4px;
+    }
+    
+    .transcript-panel.active {
+        display: block;
+    }
+    
+    .transcript-panel label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+    }
+    </style>
+    
+    <script type="text/javascript">
+    jQuery(document).ready(function($) {
+        $('.transcript-tab').on('click', function() {
+            var tabId = $(this).data('tab');
+            
+            // Remove active class from all tabs and panels
+            $('.transcript-tab').removeClass('active');
+            $('.transcript-panel').removeClass('active');
+            
+            // Add active class to clicked tab and corresponding panel
+            $(this).addClass('active');
+            $('#' + tabId + '-transcript').addClass('active');
         });
     });
     </script>

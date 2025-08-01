@@ -54,11 +54,19 @@ function dndt_register_session_cpt() {
         'show_in_menu'       => true,
         'menu_position'      => 22, // Nach D&D Kampagnen
         'menu_icon'          => 'dashicons-microphone', // Mikrofon-Icon
-        'supports'           => array( 'title', 'editor', 'custom-fields' ),
+        'supports'           => array( 'title', 'custom-fields' ), // Editor entfernt
         'show_in_rest'       => true, // Für REST API
         'rewrite'            => array( 'slug' => 'sessions' ),
-        'capability_type'    => 'post',
-        'map_meta_cap'       => true,
+        'capabilities'       => array(
+            'edit_post'          => 'do_not_allow',
+            'read_post'          => 'read',
+            'delete_post'        => 'do_not_allow',
+            'edit_posts'         => 'do_not_allow',
+            'edit_others_posts'  => 'do_not_allow',
+            'publish_posts'      => 'do_not_allow',
+            'read_private_posts' => 'read'
+        ),
+        'map_meta_cap'       => false,
         'has_archive'        => false, // Kein öffentliches Archiv
         'publicly_queryable' => false, // Nicht öffentlich abfragbar
         'exclude_from_search' => true, // Aus Suche ausschließen

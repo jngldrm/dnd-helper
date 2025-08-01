@@ -351,6 +351,7 @@ function dnd_get_rendered_campaign_summary_html( $campaign_post_id ) {
         <ul class="dnd-tabs-nav">
             <li><a class="dnd-tab-link active" href="#summary-tab-overview-<?php echo esc_attr($campaign_post_id); ?>" data-tab="overview-<?php echo esc_attr($campaign_post_id); ?>"><?php _e('Übersicht', 'dnd-helper'); ?></a></li>
             <li><a class="dnd-tab-link" href="#summary-tab-acts-<?php echo esc_attr($campaign_post_id); ?>" data-tab="acts-<?php echo esc_attr($campaign_post_id); ?>"><?php _e('Akte/Zusammenfassung', 'dnd-helper'); ?></a></li>
+            <li><a class="dnd-tab-link" href="#summary-tab-sessions-<?php echo esc_attr($campaign_post_id); ?>" data-tab="sessions-<?php echo esc_attr($campaign_post_id); ?>"><?php _e('Sitzungen', 'dnd-helper'); ?></a></li>
             <li><a class="dnd-tab-link" href="#summary-tab-quests-<?php echo esc_attr($campaign_post_id); ?>" data-tab="quests-<?php echo esc_attr($campaign_post_id); ?>"><?php _e('Quests', 'dnd-helper'); ?></a></li>
             <li><a class="dnd-tab-link" href="#summary-tab-characters-<?php echo esc_attr($campaign_post_id); ?>" data-tab="characters-<?php echo esc_attr($campaign_post_id); ?>"><?php _e('Charaktere', 'dnd-helper'); ?></a></li>
             <li><a class="dnd-tab-link" href="#summary-tab-npcs-<?php echo esc_attr($campaign_post_id); ?>" data-tab="npcs-<?php echo esc_attr($campaign_post_id); ?>"><?php _e('NPCs', 'dnd-helper'); ?></a></li>
@@ -365,6 +366,7 @@ function dnd_get_rendered_campaign_summary_html( $campaign_post_id ) {
             $tab_templates = [
                 'overview'   => 'tab-summary-overview.php',
                 'acts'       => 'tab-summary-acts.php',
+                'sessions'   => 'tab-summary-sessions.php',
                 'quests'     => 'tab-summary-quests.php',
                 'characters' => 'tab-summary-characters.php',
                 'npcs'       => 'tab-summary-npcs.php',
