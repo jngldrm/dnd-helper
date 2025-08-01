@@ -61,7 +61,7 @@ function dndt_register_session_cpt() {
             'edit_post'          => 'do_not_allow',
             'read_post'          => 'read',
             'delete_post'        => 'do_not_allow',
-            'edit_posts'         => 'do_not_allow',
+            'edit_posts'         => 'read',
             'edit_others_posts'  => 'do_not_allow',
             'publish_posts'      => 'do_not_allow',
             'read_private_posts' => 'read'
