@@ -22,5 +22,6 @@ jobs:
         password: ${{ secrets.FTP_PASS }}
         port: ${{ secrets.FTP_PORT }}
         protocol: ftp
+        passive: true
         server-dir: ${{ secrets.FTP_PATH }}
         local-dir: ./
