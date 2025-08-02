@@ -58,15 +58,15 @@ function dndt_register_session_cpt() {
         'show_in_rest'       => true, // Für REST API
         'rewrite'            => array( 'slug' => 'sessions' ),
         'capabilities'       => array(
-            'edit_post'          => 'do_not_allow',
+            'edit_post'          => 'edit_posts',
             'read_post'          => 'read',
-            'delete_post'        => 'do_not_allow',
-            'edit_posts'         => 'read',
-            'edit_others_posts'  => 'do_not_allow',
-            'publish_posts'      => 'do_not_allow',
+            'delete_post'        => 'delete_posts',
+            'edit_posts'         => 'edit_posts',
+            'edit_others_posts'  => 'edit_others_posts',
+            'publish_posts'      => 'publish_posts',
             'read_private_posts' => 'read'
         ),
-        'map_meta_cap'       => false,
+        'map_meta_cap'       => true,
         'has_archive'        => false, // Kein öffentliches Archiv
         'publicly_queryable' => false, // Nicht öffentlich abfragbar
         'exclude_from_search' => true, // Aus Suche ausschließen
