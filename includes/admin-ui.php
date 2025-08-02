@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 function dnd_restrict_admin_menu_for_editors() {
     // Prüfen, ob der aktuelle Benutzer Editor ist UND NICHT Administrator
     // ('edit_others_posts' ist eine Kernfähigkeit von Editoren, 'manage_options' von Admins)
-    if ( current_user_can('editor') && !current_user_can('manage_options') ) {
+    if ( current_user_can('edit_others_posts') && !current_user_can('manage_options') ) {
 
         // Globale Menü-Arrays holen
         global $menu, $submenu;
@@ -67,7 +67,7 @@ add_action( 'admin_menu', 'dnd_restrict_admin_menu_for_editors', 999 ); // Hohe 
  */
 function dnd_add_editor_dashboard_widget() {
     // Nur für Editoren anzeigen, die keine Admins sind
-    if ( current_user_can('editor') && !current_user_can('manage_options') ) {
+    if ( current_user_can('edit_others_posts') && !current_user_can('manage_options') ) {
         wp_add_dashboard_widget(
             'dnd_editor_instructions_widget',         // Eindeutige Widget-ID
             __( 'D&D Helper Anleitung', 'dnd-helper' ), // Widget-Titel
